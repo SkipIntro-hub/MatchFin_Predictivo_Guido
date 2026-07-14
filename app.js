@@ -3,12 +3,13 @@ const issuers = [
     id: "surcos",
     name: "SURCOS SA",
     sector: "Industria quimica agropecuaria",
-    source: "Datos reales tomados de vuelco-balance-SURCOS- Ago23.xlsx. Montos normalizados en ARS millones.",
-    dataQuality: "EEFF reales",
-    stress: { fundingCost: 34, refinancingPressure: 10, marketSensitivity: 12 },
+    source: "Datos reales tomados de EEFF Surcos 31/08/2022, 31/08/2023 y 31/08/2024, mas Nosis y FIX. Montos normalizados en ARS millones.",
+    dataQuality: "EEFF 2022-2024 + Nosis + rating",
+    stress: { fundingCost: 42, refinancingPressure: 14, marketSensitivity: 14 },
     financials: [
-      { year: 2022, revenue: 53370, ebitda: 9151, debt: 21966, cash: 1909, equity: 3441, interest: 10555, currentAssets: 43599, currentLiabilities: 34413 },
-      { year: 2023, revenue: 44961, ebitda: 8235, debt: 35246, cash: 3053, equity: 6249, interest: 6795, currentAssets: 36818, currentLiabilities: 37503 },
+      { year: 2022, revenue: 53370, ebitda: 9151, debt: 21966, cash: 1278, equity: 3441, interest: 10555, currentAssets: 43599, currentLiabilities: 34413 },
+      { year: 2023, revenue: 151391, ebitda: 27553, debt: 118680, cash: 10236, equity: 21042, interest: 22879, currentAssets: 126685, currentLiabilities: 128991 },
+      { year: 2024, revenue: 114742, ebitda: 17773, debt: 99611, cash: 958, equity: 27632, interest: 25237, currentAssets: 115680, currentLiabilities: 107708 },
     ],
   },
   {
