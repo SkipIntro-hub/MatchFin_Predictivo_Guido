@@ -1,5 +1,19 @@
 const issuers = [
   {
+    id: "sion",
+    name: "SION SA",
+    sector: "Telecomunicaciones / conectividad e infraestructura digital",
+    source: "Datos tomados de EECC Sion 2023, 2024, 2025 y 1T26, Nosis SAC 16/07/2026, Moody's Local mayo 2026 y noticias iProfesional/DPL News sobre InfraCo Partners. Montos normalizados en ARS millones; 1T26 anualizado para comparabilidad.",
+    dataQuality: "EECC 2023-2025 + 1T26 + Nosis + Moody's + noticias",
+    stress: { fundingCost: 28, refinancingPressure: 8, marketSensitivity: 9 },
+    financials: [
+      { year: 2023, revenue: 6082, ebitda: 2128, debt: 6148, cash: 764, equity: 16901, interest: 2122, currentAssets: 2865, currentLiabilities: 4746 },
+      { year: 2024, revenue: 18786, ebitda: 8153, debt: 31743, cash: 5558, equity: 53416, interest: 2472, currentAssets: 19039, currentLiabilities: 22432 },
+      { year: 2025, revenue: 22182, ebitda: 10689, debt: 38259, cash: 5795, equity: 60149, interest: 5297, currentAssets: 16868, currentLiabilities: 28032 },
+      { year: 2026, period: "1T26 ann.", revenue: 17864, ebitda: 10014, debt: 37154, cash: 4389, equity: 68452, interest: 8421, currentAssets: 18793, currentLiabilities: 27684 },
+    ],
+  },
+  {
     id: "surcos",
     name: "SURCOS SA",
     sector: "Industria quimica agropecuaria",
@@ -63,6 +77,43 @@ const issuers = [
 ];
 
 const externalInputs = {
+  sion: {
+    sectorDefaultRate: 2.55,
+    macro: {
+      pbi2026: 2.8,
+      pbi2027: 3.1,
+      pbi2028: 3.0,
+      inflation12m: 24.1,
+      policyRate2026: 22.12,
+      countryRiskLatest: 435,
+      countryRiskAverage: 677,
+    },
+    rating: {
+      agency: "Moody's Local AR",
+      issuerRating: "BBB+.ar",
+      shortRating: "ML A-2.ar",
+      perspective: "Estable",
+      source: "Moody's Local AR - Sion S.A., 7 de mayo de 2026",
+      defaultSignal: false,
+      detail: "BBB+.ar estable; Moody's destaca margen EBITDA alto, apalancamiento elevado y liquidez estructuralmente acotada.",
+    },
+    nosis: {
+      score: 567,
+      rating: "AAA",
+      jointRating: "A",
+      situation: 1,
+      patronales: "ok",
+      monthlyCommitments: 455,
+      pendingChecks: 0,
+      source: "Nosis SAC Sion 16/07/2026",
+    },
+    news: {
+      label: "MoU InfraCo Partners por hasta USD 5 MM",
+      signal: "Inversion estrategica potencial, no vinculante hasta documentacion definitiva.",
+      strategicInvestment: true,
+      sources: "iProfesional 04/06/2026; DPL News 05/06/2026",
+    },
+  },
   surcos: {
     sectorDefaultRate: 3.44,
     macro: {
@@ -361,7 +412,8 @@ const driverCategories = [
       if (ctx.incomeGrowth < -4) negatives.push("Elasticidad o sustitutos afectan ventas");
       if (sectorRisk <= 12) positives.push("Riesgo sectorial acotado");
       if (sectorRisk >= 18) negatives.push("Microindustria expuesta a cambios de entorno");
-      return signal(positives, negatives, 68 + ctx.incomeGrowth * 0.45 - sectorRisk * 1.25);
+      if (ctx.external?.news?.strategicInvestment) positives.push("Interes de capital estrategico para expansion de infraestructura");
+      return signal(positives, negatives, 68 + ctx.incomeGrowth * 0.45 - sectorRisk * 1.25 + (ctx.external?.news?.strategicInvestment ? 4 : 0));
     },
   },
   {
@@ -502,6 +554,10 @@ const els = {
   prescriptionList: document.querySelector("#prescriptionList"),
   validationText: document.querySelector("#validationText"),
   biasText: document.querySelector("#biasText"),
+  consolidatedVerdict: document.querySelector("#consolidatedVerdict"),
+  consolidatedNarrative: document.querySelector("#consolidatedNarrative"),
+  consolidatedFindings: document.querySelector("#consolidatedFindings"),
+  consolidatedValue: document.querySelector("#consolidatedValue"),
   confidenceFill: document.querySelector("#confidenceFill"),
   incomeGrowth: document.querySelector("#incomeGrowth"),
   debtGrowth: document.querySelector("#debtGrowth"),
@@ -553,6 +609,20 @@ function signedNumber(value) {
 
 function money(value) {
   return value.toLocaleString("es-AR", { maximumFractionDigits: 0 });
+}
+
+function periodLabel(financial) {
+  return financial.period || String(financial.year);
+}
+
+function predictionLabels(length = 4) {
+  const latest = latestFinancial();
+  const baseYear = Number.parseInt(latest.year, 10);
+  return Array.from({ length }, (_, index) => {
+    if (index === 0) return periodLabel(latest);
+    if (Number.isFinite(baseYear)) return String(baseYear + index);
+    return `Ano ${index}`;
+  });
 }
 
 function average(values) {
@@ -931,7 +1001,7 @@ function buildTemporalModel(model) {
     const incomeGrowth = index === 0 ? 0 : ((financial.revenue / list[index - 1].revenue) - 1) * 100;
     const debtGrowth = index === 0 ? 0 : ((financial.debt / list[index - 1].debt) - 1) * 100;
     const result = evaluateDriverModel(incomeGrowth, debtGrowth, state.issuer.stress.fundingCost, 0);
-    return { label: String(financial.year), values: temporalDimensionsFromModel(result) };
+    return { label: periodLabel(financial), values: temporalDimensionsFromModel(result) };
   });
   const currentResult = evaluateDriverModel(state.incomeGrowth, state.debtGrowth, state.fundingStress, 0);
   const projectedResult = evaluateDriverModel(
@@ -951,7 +1021,7 @@ function buildTemporalModel(model) {
 
   return {
     labels: ["Patrimonio", "Liquidez", "Rentabilidad"],
-    history: [...history.slice(0, -1), { label: "Actual", values: current }],
+    history: [...history.slice(0, -1), { label: periodLabel(latestFinancial()), values: current }],
     previous,
     current,
     projected,
@@ -1242,7 +1312,7 @@ function drawChart(model) {
     ctx.font = "700 14px Inter, system-ui, sans-serif";
     ctx.fillText(score, x - 9, y - 16);
   });
-  ["Actual", "Ano 1", "Ano 2", "Ano 3"].forEach((label, index) => {
+  predictionLabels(values.length).forEach((label, index) => {
     ctx.fillStyle = "#66716f";
     ctx.font = "13px Inter, system-ui, sans-serif";
     ctx.fillText(label, xFor(index) - 18, height - 24);
@@ -1307,12 +1377,12 @@ function renderFinancials(currentModel) {
   const external = externalInputs[state.issuer.id];
 
   els.companyTitle.textContent = `${state.issuer.name} · ${state.issuer.sector}`;
-  els.sourceNotes.textContent = `${state.issuer.source} Inputs externos: datos de testing, Nosis SAC y FIX.`;
+  els.sourceNotes.textContent = `${state.issuer.source} Inputs externos: ${external.rating.source}; ${external.nosis.source}${external.news ? `; ${external.news.sources}` : ""}.`;
   els.dataQuality.textContent = `${state.issuer.dataQuality} + externos`;
   els.financialTable.innerHTML = state.issuer.financials
     .map((item) => `
       <tr>
-        <td>${item.year}</td>
+        <td>${periodLabel(item)}</td>
         <td>${money(item.revenue)}</td>
         <td>${money(item.ebitda)}</td>
         <td>${money(item.debt)}</td>
@@ -1330,6 +1400,7 @@ function renderFinancials(currentModel) {
     ["Mora sectorial", `${external.sectorDefaultRate.toFixed(2)}%`, byId.actividad.negatives.find((x) => x.includes("Mora")) || byId.actividad.positives.find((x) => x.includes("Mora")) || "Sin senal extrema"],
     ["Nosis / BCRA", `${external.nosis.score} · Sit. ${external.nosis.situation}`, byId.nosis.negatives[0] || byId.nosis.positives[0] || "Sin senal extrema"],
     ["Calificadora", external.rating.issuerRating, byId.calificacion.negatives[0] || byId.calificacion.positives[0] || external.rating.detail],
+    ...(external.news ? [["Noticias / capital", external.news.label, external.news.signal]] : []),
   ];
 
   els.ratiosTable.innerHTML = ratioRows
@@ -1353,10 +1424,81 @@ function renderEngineTable(currentModel, values) {
 
   els.timeline.innerHTML = values
     .map((score, index) => {
-      const label = index === 0 ? "Actual" : `Ano ${index}`;
+      const label = predictionLabels(values.length)[index];
       return `<div class="timeline-item"><strong>${label}</strong><span>${score} puntos · ${scoreLabel(score)}</span></div>`;
     })
     .join("");
+}
+
+function buildConsolidatedAnalysis(currentModel, model, feasibility) {
+  const latest = latestFinancial();
+  const ratios = calculateFinancialRatios(latest);
+  const current = model.expected[0];
+  const projected = model.expected.at(-1);
+  const drift = projected - current;
+  const riskScenario = getMostRelevantRiskScenario(model);
+  const weakest = [...currentModel.categoryResults].sort((a, b) => a.score - b.score)[0];
+  const strongest = [...currentModel.categoryResults].sort((a, b) => b.score - a.score)[0];
+  const external = externalInputs[state.issuer.id];
+  const hasStrategicNews = Boolean(external?.news?.strategicInvestment);
+  const strongOperations = ratios.ebitdaMargin >= 25 || strongest.id === "microindustria";
+  const tightLiquidity = ratios.currentRatio < 1 || ratios.interestCoverage < 2.2 || ratios.leverage > 3.2;
+  const normalExternal = external?.nosis?.situation === 1 && !external?.rating?.defaultSignal;
+
+  const verdict =
+    projected >= 68
+      ? "Aptitud defendible con monitoreo"
+      : projected >= 55
+        ? "Aptitud condicionada"
+        : "Riesgo relevante a validar";
+
+  let narrative;
+  if (strongOperations && tightLiquidity && normalExternal) {
+    narrative =
+      `La herramienta no lee a ${state.issuer.name} como un deterioro operativo ni como un evento de mora. ` +
+      "Lee un negocio atractivo, con senales externas razonables, cuya aptitud crediticia depende de sostener liquidez y acceso a financiamiento. " +
+      `Por eso el score cae de ${current} a ${projected}: el riesgo no nace del negocio, sino de la exigencia de refinanciar crecimiento, CAPEX o deuda.`;
+  } else if (tightLiquidity && projected < 55) {
+    narrative =
+      `${state.issuer.name} queda como un caso donde la presion financiera domina la lectura. ` +
+      "Aunque puedan existir soportes puntuales, la combinacion de liquidez, deuda y cobertura hace que la proyeccion salga del andarivel de seguridad.";
+  } else if (projected >= 68) {
+    narrative =
+      `${state.issuer.name} mantiene una lectura crediticia defendible: los drivers principales sostienen la curva y el escenario de stress no desplaza el caso fuera de zona segura.`;
+  } else {
+    narrative =
+      `${state.issuer.name} queda en una zona intermedia: no aparece una senal unica de deterioro, pero la proyeccion exige validar si los soportes actuales alcanzan para compensar la presion futura.`;
+  }
+
+  const findings = [
+    strongOperations
+      ? `El negocio muestra capacidad operativa: margen EBITDA ${pct(ratios.ebitdaMargin)} y soporte principal en ${strongest.name}.`
+      : `El soporte principal aparece en ${strongest.name}, pero no alcanza por si solo para cerrar la lectura crediticia.`,
+    tightLiquidity
+      ? `La condicion critica es financiera: liquidez ${ratios.currentRatio.toFixed(1)}x, deuda/EBITDA ${ratios.leverage.toFixed(1)}x y cobertura ${ratios.interestCoverage.toFixed(1)}x.`
+      : `La estructura financiera no aparece como tension dominante: liquidez ${ratios.currentRatio.toFixed(1)}x y cobertura ${ratios.interestCoverage.toFixed(1)}x.`,
+    normalExternal
+      ? `Nosis/rating no disparan una alarma dura; por eso el motor no concluye default, sino riesgo condicionado.`
+      : `Las senales externas agregan presion y hacen menos reversible la lectura del motor.`,
+    `La curva agrega tiempo: el caso no se evalua solo por la foto actual, sino por la caida esperada de ${drift} puntos y el escenario ${riskScenario.name}.`,
+    hasStrategicNews
+      ? `${external.news.label} puede cambiar la foto si se concreta, pero el motor la trata como catalizador condicionado.`
+      : "No hay una noticia de capital cargada que compense automaticamente la presion proyectada.",
+  ];
+
+  const value = [
+    "Confirmar calendario de vencimientos, refinanciaciones y concentracion de deuda de corto plazo.",
+    "Separar deuda financiera real de pasivos operativos para verificar si la presion medida es estructural.",
+    hasStrategicNews
+      ? "Validar si el acuerdo/catalizador externo ya se transformo en fondos efectivos o sigue siendo contingente."
+      : "Buscar eventos posteriores que puedan modificar liquidez, deuda o acceso al mercado.",
+    "Normalizar cobertura de intereses y EBITDA para evitar que RECPAM, extraordinarios o anualizaciones distorsionen la lectura.",
+    feasibility >= 70
+      ? "Contrastar si las acciones correctivas son ejecutables dentro del plazo de la curva."
+      : "Pedir mitigantes: garantias, covenants, menor plazo/cupo o confirmacion de fondeo antes de asumir mejora.",
+  ];
+
+  return { verdict, narrative, findings, value };
 }
 
 function render() {
@@ -1400,6 +1542,11 @@ function render() {
   els.biasText.textContent =
     `${biasIntro} Escenario que mas aporta riesgo: ${riskScenario.name}, ` +
     `${Math.round(riskScenario.probability * 100)}% de probabilidad, score final ${riskScenario.finalScore}.`;
+  const consolidated = buildConsolidatedAnalysis(currentModel, model, feasibility);
+  els.consolidatedVerdict.textContent = consolidated.verdict;
+  els.consolidatedNarrative.textContent = consolidated.narrative;
+  els.consolidatedFindings.innerHTML = consolidated.findings.map((item) => `<li>${item}</li>`).join("");
+  els.consolidatedValue.innerHTML = consolidated.value.map((item) => `<li>${item}</li>`).join("");
   els.incomeGrowthValue.textContent =
     `Base ${pct(state.baseInputs.incomeGrowth)} · ${signedPct(state.shocks.incomeGrowth)} · ${pct(state.incomeGrowth)}`;
   els.debtGrowthValue.textContent =

@@ -122,6 +122,7 @@ select {
 .chart-panel,
 .decision-panel,
 .controls-panel,
+.analysis-panel,
 .pilot-panel,
 .probability-panel,
 .detail-grid article {
@@ -158,10 +159,60 @@ select {
 .chart-panel,
 .decision-panel,
 .controls-panel,
+.analysis-panel,
 .pilot-panel,
 .probability-panel,
 .detail-grid article {
   padding: 20px;
+}
+
+.analysis-panel {
+  margin-bottom: 14px;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.95fr) minmax(0, 0.95fr);
+  gap: 14px;
+}
+
+.analysis-grid article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfc;
+  padding: 16px;
+}
+
+.analysis-verdict span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.analysis-verdict strong {
+  display: block;
+  font-size: 22px;
+  margin-bottom: 10px;
+}
+
+.analysis-verdict p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 0;
+}
+
+.analysis-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analysis-list li {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .panel-header {
@@ -697,6 +748,7 @@ th {
   .pilot-grid,
   .probability-grid,
   .temporal-grid,
+  .analysis-grid,
   .detail-grid {
     grid-template-columns: 1fr 1fr;
   }
@@ -727,6 +779,7 @@ th {
   .probability-controls,
   .temporal-grid,
   .temporal-cards,
+  .analysis-grid,
   .detail-grid {
     grid-template-columns: 1fr;
   }
